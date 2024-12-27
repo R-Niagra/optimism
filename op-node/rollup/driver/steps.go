@@ -10,38 +10,67 @@ import (
 )
 
 type ResetStepBackoffEvent struct {
+	ParentEv string
 }
 
 func (ev ResetStepBackoffEvent) String() string {
 	return "reset-step-backoff"
 }
 
+func (ev ResetStepBackoffEvent) Parent() string {
+	return ev.ParentEv
+}
+
 type StepDelayedReqEvent struct {
 	Delay time.Duration
+
+	ParentEv string
 }
 
 func (ev StepDelayedReqEvent) String() string {
 	return "step-delayed-req"
 }
 
+func (ev StepDelayedReqEvent) Parent() string {
+	return ev.ParentEv
+}
+
 type StepReqEvent struct {
 	ResetBackoff bool
+
+	ParentEv string
 }
 
 func (ev StepReqEvent) String() string {
 	return "step-req"
 }
 
-type StepAttemptEvent struct{}
+func (ev StepReqEvent) Parent() string {
+	return ev.ParentEv
+}
+
+type StepAttemptEvent struct {
+	ParentEv string
+}
 
 func (ev StepAttemptEvent) String() string {
 	return "step-attempt"
 }
 
-type StepEvent struct{}
+func (ev StepAttemptEvent) Parent() string {
+	return ev.ParentEv
+}
+
+type StepEvent struct {
+	ParentEv string
+}
 
 func (ev StepEvent) String() string {
 	return "step"
+}
+
+func (ev StepEvent) Parent() string {
+	return ev.ParentEv
 }
 
 // StepSchedulingDeriver is a deriver that emits StepEvent events.

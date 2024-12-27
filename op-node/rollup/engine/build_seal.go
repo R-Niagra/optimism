@@ -19,10 +19,16 @@ type PayloadSealInvalidEvent struct {
 
 	Concluding  bool
 	DerivedFrom eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev PayloadSealInvalidEvent) String() string {
 	return "payload-seal-invalid"
+}
+
+func (ev PayloadSealInvalidEvent) Parent() string {
+	return ev.ParentEv
 }
 
 // PayloadSealExpiredErrorEvent identifies a form of failed payload-sealing that is not coupled
@@ -35,10 +41,16 @@ type PayloadSealExpiredErrorEvent struct {
 
 	Concluding  bool
 	DerivedFrom eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev PayloadSealExpiredErrorEvent) String() string {
 	return "payload-seal-expired-error"
+}
+
+func (ev PayloadSealExpiredErrorEvent) Parent() string {
+	return ev.ParentEv
 }
 
 type BuildSealEvent struct {
@@ -48,10 +60,16 @@ type BuildSealEvent struct {
 	Concluding bool
 	// payload is promoted to pending-safe if non-zero
 	DerivedFrom eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev BuildSealEvent) String() string {
 	return "build-seal"
+}
+
+func (ev BuildSealEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (eq *EngDeriver) onBuildSeal(ev BuildSealEvent) {

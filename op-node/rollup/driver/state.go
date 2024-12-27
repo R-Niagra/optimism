@@ -223,7 +223,7 @@ func (s *Driver) eventLoop() {
 
 		select {
 		case <-sequencerCh:
-			s.Emitter.Emit(sequencing.SequencerActionEvent{})
+			s.Emitter.Emit(sequencing.SequencerActionEvent{ParentEv: "root"})
 		case <-altSyncTicker.C:
 			// Check if there is a gap in the current unsafe payload queue.
 			ctx, cancel := context.WithTimeout(s.driverCtx, time.Second*2)
@@ -236,7 +236,7 @@ func (s *Driver) eventLoop() {
 			// If we are doing CL sync or done with engine syncing, fallback to the unsafe payload queue & CL P2P sync.
 			if s.SyncCfg.SyncMode == sync.CLSync || !s.Engine.IsEngineSyncing() {
 				s.log.Info("Optimistically queueing unsafe L2 execution payload", "id", envelope.ExecutionPayload.ID())
-				s.Emitter.Emit(clsync.ReceivedUnsafePayloadEvent{Envelope: envelope})
+				s.Emitter.Emit(clsync.ReceivedUnsafePayloadEvent{Envelope: envelope, ParentEv: "unsafeL2Payloads"})
 				s.metrics.RecordReceivedUnsafePayload(envelope)
 				reqStep()
 			} else if s.SyncCfg.SyncMode == sync.ELSync {
@@ -254,13 +254,13 @@ func (s *Driver) eventLoop() {
 				}
 			}
 		case newL1Head := <-s.l1HeadSig:
-			s.Emitter.Emit(status.L1UnsafeEvent{L1Unsafe: newL1Head})
+			s.Emitter.Emit(status.L1UnsafeEvent{L1Unsafe: newL1Head, ParentEv: "l1HeadSig"})
 			reqStep() // a new L1 head may mean we have the data to not get an EOF again.
 		case newL1Safe := <-s.l1SafeSig:
-			s.Emitter.Emit(status.L1SafeEvent{L1Safe: newL1Safe})
+			s.Emitter.Emit(status.L1SafeEvent{L1Safe: newL1Safe, ParentEv: "l1SafeSig"})
 			// no step, justified L1 information does not do anything for L2 derivation or status
 		case newL1Finalized := <-s.l1FinalizedSig:
-			s.emitter.Emit(finality.FinalizeL1Event{FinalizedL1: newL1Finalized})
+			s.emitter.Emit(finality.FinalizeL1Event{FinalizedL1: newL1Finalized, ParentEv: "l1FinalizedSig"})
 			reqStep() // we may be able to mark more L2 data as finalized now
 		case <-s.sched.NextDelayedStep():
 			s.emitter.Emit(StepAttemptEvent{})
@@ -332,11 +332,11 @@ func (s *SyncDeriver) OnEvent(ev event.Event) bool {
 	case derive.DeriverIdleEvent:
 		// Once derivation is idle the system is healthy
 		// and we can wait for new inputs. No backoff necessary.
-		s.Emitter.Emit(ResetStepBackoffEvent{})
+		s.Emitter.Emit(ResetStepBackoffEvent{ParentEv: "DriverIdle"})
 	case derive.DeriverMoreEvent:
 		// If there is more data to process,
 		// continue derivation quickly
-		s.Emitter.Emit(StepReqEvent{ResetBackoff: true})
+		s.Emitter.Emit(StepReqEvent{ResetBackoff: true, ParentEv: "DriverMore"})
 	case engine.SafeDerivedEvent:
 		s.onSafeDerivedBlock(x)
 	default:

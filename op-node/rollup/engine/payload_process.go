@@ -18,10 +18,16 @@ type PayloadProcessEvent struct {
 
 	Envelope *eth.ExecutionPayloadEnvelope
 	Ref      eth.L2BlockRef
+
+	ParentEv string
 }
 
 func (ev PayloadProcessEvent) String() string {
 	return "payload-process"
+}
+
+func (ev PayloadProcessEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (eq *EngDeriver) onPayloadProcess(ev PayloadProcessEvent) {

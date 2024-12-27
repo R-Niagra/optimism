@@ -56,10 +56,16 @@ type AsyncGossiper interface {
 // This event is used to prioritize sequencer work over derivation work,
 // by emitting it before e.g. a derivation-pipeline step.
 // A future sequencer in an async world may manage its own execution.
-type SequencerActionEvent struct{}
+type SequencerActionEvent struct {
+	ParentEv string
+}
 
 func (ev SequencerActionEvent) String() string {
 	return "sequencer-action"
+}
+
+func (ev SequencerActionEvent) Parent() string {
+	return ev.ParentEv
 }
 
 type BuildingState struct {
@@ -205,7 +211,7 @@ func (d *Sequencer) onBuildStarted(x engine.BuildStartedEvent) {
 		d.nextActionOK = false
 		return
 	}
-	if d.latest.Onto != x.Parent {
+	if d.latest.Onto != x.ParentBlock {
 		d.log.Warn("Canceling stale block-building job that was just started, as target to build onto has changed",
 			"stale", x.Parent, "new", d.latest.Onto, "job_id", x.Info.ID, "job_timestamp", x.Info.Timestamp)
 		d.emitter.Emit(engine.BuildCancelEvent{
@@ -217,7 +223,7 @@ func (d *Sequencer) onBuildStarted(x engine.BuildStartedEvent) {
 	}
 	// if not a derived block, then it is work of the sequencer
 	d.log.Debug("Sequencer started building new block",
-		"payloadID", x.Info.ID, "parent", x.Parent, "parent_time", x.Parent.Time)
+		"payloadID", x.Info.ID, "parent", x.Parent, "parent_time", x.ParentBlock.Time)
 	d.latest.Info = x.Info
 	d.latest.Started = x.BuildStarted
 
@@ -225,7 +231,7 @@ func (d *Sequencer) onBuildStarted(x engine.BuildStartedEvent) {
 
 	// schedule sealing
 	now := d.timeNow()
-	payloadTime := time.Unix(int64(x.Parent.Time+d.rollupCfg.BlockTime), 0)
+	payloadTime := time.Unix(int64(x.ParentBlock.Time+d.rollupCfg.BlockTime), 0)
 	remainingTime := payloadTime.Sub(now)
 	if remainingTime < sealingDuration {
 		d.nextAction = now // if there's not enough time for sealing, don't wait.

@@ -90,7 +90,7 @@ func (c *ChaoticEngine) OnEvent(ev event.Event) bool {
 			c.emitter.Emit(engine.BuildStartedEvent{
 				Info:         c.currentPayloadInfo,
 				BuildStarted: c.clock.Now(),
-				Parent:       x.Attributes.Parent,
+				ParentBlock:  x.Attributes.Parent,
 				Concluding:   false,
 				DerivedFrom:  eth.L1BlockRef{},
 			})

@@ -16,10 +16,16 @@ type PayloadSuccessEvent struct {
 
 	Envelope *eth.ExecutionPayloadEnvelope
 	Ref      eth.L2BlockRef
+
+	ParentEv string
 }
 
 func (ev PayloadSuccessEvent) String() string {
 	return "payload-success"
+}
+
+func (ev PayloadSuccessEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (eq *EngDeriver) onPayloadSuccess(ev PayloadSuccessEvent) {

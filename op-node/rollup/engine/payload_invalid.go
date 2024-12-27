@@ -5,10 +5,16 @@ import "github.com/ethereum-optimism/optimism/op-service/eth"
 type PayloadInvalidEvent struct {
 	Envelope *eth.ExecutionPayloadEnvelope
 	Err      error
+
+	ParentEv string
 }
 
 func (ev PayloadInvalidEvent) String() string {
 	return "payload-invalid"
+}
+
+func (ev PayloadInvalidEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (eq *EngDeriver) onPayloadInvalid(ev PayloadInvalidEvent) {

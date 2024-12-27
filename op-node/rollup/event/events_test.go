@@ -7,10 +7,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type TestEvent struct{}
+type TestEvent struct {
+	ParentEv string
+}
 
 func (ev TestEvent) String() string {
 	return "X"
+}
+
+func (ev TestEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func TestDeriverMux_OnEvent(t *testing.T) {

@@ -125,16 +125,28 @@ func (fi *Finalizer) FinalizedL1() (out eth.L1BlockRef) {
 
 type FinalizeL1Event struct {
 	FinalizedL1 eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev FinalizeL1Event) String() string {
 	return "finalized-l1"
 }
 
-type TryFinalizeEvent struct{}
+func (ev FinalizeL1Event) Parent() string {
+	return ev.ParentEv
+}
+
+type TryFinalizeEvent struct {
+	ParentEv string
+}
 
 func (ev TryFinalizeEvent) String() string {
 	return "try-finalize"
+}
+
+func (ev TryFinalizeEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (fi *Finalizer) OnEvent(ev event.Event) bool {

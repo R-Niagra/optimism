@@ -6,16 +6,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type FooEvent struct{}
+type FooEvent struct {
+	ParentEv string
+}
 
 func (ev FooEvent) String() string {
 	return "foo"
 }
 
-type BarEvent struct{}
+func (ev FooEvent) Parent() string {
+	return ev.ParentEv
+}
+
+type BarEvent struct {
+	ParentEv string
+}
 
 func (ev BarEvent) String() string {
 	return "bar"
+}
+
+func (ev BarEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func TestIs(t *testing.T) {

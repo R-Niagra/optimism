@@ -14,10 +14,16 @@ import (
 // ResetEngineRequestEvent requests the EngineResetDeriver to walk
 // the L2 chain backwards until it finds a plausible unsafe head,
 // and find an L2 safe block that is guaranteed to still be from the L1 chain.
-type ResetEngineRequestEvent struct{}
+type ResetEngineRequestEvent struct {
+	ParentEv string
+}
 
 func (ev ResetEngineRequestEvent) String() string {
 	return "reset-engine-request"
+}
+
+func (ev ResetEngineRequestEvent) Parent() string {
+	return ev.ParentEv
 }
 
 type EngineResetDeriver struct {

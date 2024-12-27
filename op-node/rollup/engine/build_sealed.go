@@ -18,10 +18,16 @@ type BuildSealedEvent struct {
 	Info     eth.PayloadInfo
 	Envelope *eth.ExecutionPayloadEnvelope
 	Ref      eth.L2BlockRef
+
+	ParentEv string
 }
 
 func (ev BuildSealedEvent) String() string {
 	return "build-sealed"
+}
+
+func (ev BuildSealedEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (eq *EngDeriver) onBuildSealed(ev BuildSealedEvent) {

@@ -59,11 +59,16 @@ func TestQueueSanityLimit(t *testing.T) {
 }
 
 type CyclicEvent struct {
-	Count int
+	Count    int
+	ParentEv string
 }
 
 func (ev CyclicEvent) String() string {
 	return "cyclic-event"
+}
+
+func (ev CyclicEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func TestSynchronousCyclic(t *testing.T) {

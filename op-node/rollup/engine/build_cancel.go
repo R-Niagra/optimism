@@ -13,10 +13,16 @@ import (
 type BuildCancelEvent struct {
 	Info  eth.PayloadInfo
 	Force bool
+
+	ParnetEv string
 }
 
 func (ev BuildCancelEvent) String() string {
 	return "build-cancel"
+}
+
+func (ev BuildCancelEvent) Parent() string {
+	return ev.ParnetEv
 }
 
 func (eq *EngDeriver) onBuildCancel(ev BuildCancelEvent) {

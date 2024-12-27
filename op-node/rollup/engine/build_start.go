@@ -12,10 +12,16 @@ import (
 
 type BuildStartEvent struct {
 	Attributes *derive.AttributesWithParent
+
+	ParentEv string
 }
 
 func (ev BuildStartEvent) String() string {
 	return "build-start"
+}
+
+func (ev BuildStartEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (eq *EngDeriver) onBuildStart(ev BuildStartEvent) {
@@ -70,6 +76,6 @@ func (eq *EngDeriver) onBuildStart(ev BuildStartEvent) {
 		BuildStarted: buildStartTime,
 		Concluding:   ev.Attributes.Concluding,
 		DerivedFrom:  ev.Attributes.DerivedFrom,
-		Parent:       ev.Attributes.Parent,
+		ParentBlock:  ev.Attributes.Parent,
 	})
 }

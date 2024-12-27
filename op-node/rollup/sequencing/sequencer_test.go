@@ -315,7 +315,7 @@ func TestSequencer_StaleBuild(t *testing.T) {
 	seq.OnEvent(engine.BuildStartedEvent{
 		Info:         payloadInfo,
 		BuildStarted: startedTime,
-		Parent:       head,
+		ParentBlock:  head,
 		Concluding:   false,
 		DerivedFrom:  eth.L1BlockRef{},
 	})
@@ -521,7 +521,7 @@ func TestSequencerBuild(t *testing.T) {
 	seq.OnEvent(engine.BuildStartedEvent{
 		Info:         payloadInfo,
 		BuildStarted: startedTime,
-		Parent:       head,
+		ParentBlock:  head,
 		Concluding:   false,
 		DerivedFrom:  eth.L1BlockRef{},
 	})
