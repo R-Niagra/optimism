@@ -273,7 +273,7 @@ func (e *EngineController) TryUpdateEngine(ctx context.Context) error {
 	}
 	if e.unsafeHead.Number < e.finalizedHead.Number {
 		err := fmt.Errorf("invalid forkchoice state, unsafe head %s is behind finalized head %s", e.unsafeHead, e.finalizedHead)
-		e.emitter.Emit(rollup.CriticalErrorEvent{Err: err}) // make the node exit, things are very wrong.
+		e.emitter.Emit(rollup.CriticalErrorEvent{Err: err, ParentEv: "tryUpdateEngine"}) // make the node exit, things are very wrong.
 		return err
 	}
 	fc := eth.ForkchoiceState{
@@ -302,6 +302,7 @@ func (e *EngineController) TryUpdateEngine(ctx context.Context) error {
 			UnsafeL2Head:    e.unsafeHead,
 			SafeL2Head:      e.safeHead,
 			FinalizedL2Head: e.finalizedHead,
+			ParentEv:        "tryUpdateEngine",
 		})
 	}
 	if e.unsafeHead == e.safeHead && e.safeHead == e.pendingSafeHead {
@@ -336,7 +337,7 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 		return derive.NewTemporaryError(fmt.Errorf("failed to update insert payload: %w", err))
 	}
 	if status.Status == eth.ExecutionInvalid {
-		e.emitter.Emit(PayloadInvalidEvent{Envelope: envelope, Err: eth.NewPayloadErr(envelope.ExecutionPayload, status)})
+		e.emitter.Emit(PayloadInvalidEvent{Envelope: envelope, Err: eth.NewPayloadErr(envelope.ExecutionPayload, status), ParentEv: "InsertUnsafePayload"})
 	}
 	if !e.checkNewPayloadStatus(status.Status) {
 		payload := envelope.ExecutionPayload
@@ -355,10 +356,10 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 		fc.SafeBlockHash = envelope.ExecutionPayload.BlockHash
 		fc.FinalizedBlockHash = envelope.ExecutionPayload.BlockHash
 		e.SetUnsafeHead(ref) // ensure that the unsafe head stays ahead of safe/finalized labels.
-		e.emitter.Emit(UnsafeUpdateEvent{Ref: ref})
+		e.emitter.Emit(UnsafeUpdateEvent{Ref: ref, ParentEv: "InsertUnsafePayload"})
 		e.SetLocalSafeHead(ref)
 		e.SetSafeHead(ref)
-		e.emitter.Emit(CrossSafeUpdateEvent{LocalSafe: ref, CrossSafe: ref})
+		e.emitter.Emit(CrossSafeUpdateEvent{LocalSafe: ref, CrossSafe: ref, ParentEv: "InsertUnsafeEvent"})
 		e.SetFinalizedHead(ref)
 	}
 	logFn := e.logSyncProgressMaybe()
@@ -398,6 +399,7 @@ func (e *EngineController) InsertUnsafePayload(ctx context.Context, envelope *et
 			UnsafeL2Head:    e.unsafeHead,
 			SafeL2Head:      e.safeHead,
 			FinalizedL2Head: e.finalizedHead,
+			ParentEv:        "InsertUnsafeEvent",
 		})
 	}
 
@@ -479,6 +481,7 @@ func (e *EngineController) TryBackupUnsafeReorg(ctx context.Context) (bool, erro
 			UnsafeL2Head:    e.backupUnsafeHead,
 			SafeL2Head:      e.safeHead,
 			FinalizedL2Head: e.finalizedHead,
+			ParentEv:        "tryBackupUnsafeReorg",
 		})
 		// Execution engine accepted the reorg.
 		e.log.Info("successfully reorged unsafe head using backupUnsafe", "unsafe", e.backupUnsafeHead.ID())

@@ -16,18 +16,30 @@ import (
 
 type L1UnsafeEvent struct {
 	L1Unsafe eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev L1UnsafeEvent) String() string {
 	return "l1-unsafe"
 }
 
+func (ev L1UnsafeEvent) Parent() string {
+	return ev.ParentEv
+}
+
 type L1SafeEvent struct {
 	L1Safe eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev L1SafeEvent) String() string {
 	return "l1-safe"
+}
+
+func (ev L1SafeEvent) Parent() string {
+	return ev.ParentEv
 }
 
 type Metrics interface {

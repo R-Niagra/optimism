@@ -56,10 +56,16 @@ type AsyncGossiper interface {
 // This event is used to prioritize sequencer work over derivation work,
 // by emitting it before e.g. a derivation-pipeline step.
 // A future sequencer in an async world may manage its own execution.
-type SequencerActionEvent struct{}
+type SequencerActionEvent struct {
+	ParentEv string
+}
 
 func (ev SequencerActionEvent) String() string {
 	return "sequencer-action"
+}
+
+func (ev SequencerActionEvent) Parent() string {
+	return ev.ParentEv
 }
 
 type BuildingState struct {
@@ -205,19 +211,20 @@ func (d *Sequencer) onBuildStarted(x engine.BuildStartedEvent) {
 		d.nextActionOK = false
 		return
 	}
-	if d.latest.Onto != x.Parent {
+	if d.latest.Onto != x.ParentBlock {
 		d.log.Warn("Canceling stale block-building job that was just started, as target to build onto has changed",
 			"stale", x.Parent, "new", d.latest.Onto, "job_id", x.Info.ID, "job_timestamp", x.Info.Timestamp)
 		d.emitter.Emit(engine.BuildCancelEvent{
-			Info:  x.Info,
-			Force: true,
+			Info:     x.Info,
+			Force:    true,
+			ParnetEv: "buildStarted",
 		})
 		d.handleInvalid()
 		return
 	}
 	// if not a derived block, then it is work of the sequencer
 	d.log.Debug("Sequencer started building new block",
-		"payloadID", x.Info.ID, "parent", x.Parent, "parent_time", x.Parent.Time)
+		"payloadID", x.Info.ID, "parent", x.Parent, "parent_time", x.ParentBlock.Time)
 	d.latest.Info = x.Info
 	d.latest.Started = x.BuildStarted
 
@@ -225,7 +232,7 @@ func (d *Sequencer) onBuildStarted(x engine.BuildStartedEvent) {
 
 	// schedule sealing
 	now := d.timeNow()
-	payloadTime := time.Unix(int64(x.Parent.Time+d.rollupCfg.BlockTime), 0)
+	payloadTime := time.Unix(int64(x.ParentBlock.Time+d.rollupCfg.BlockTime), 0)
 	remainingTime := payloadTime.Sub(now)
 	if remainingTime < sealingDuration {
 		d.nextAction = now // if there's not enough time for sealing, don't wait.
@@ -271,7 +278,8 @@ func (d *Sequencer) onBuildSealed(x engine.BuildSealedEvent) {
 	defer cancel()
 	if err := d.conductor.CommitUnsafePayload(ctx, x.Envelope); err != nil {
 		d.emitter.Emit(rollup.EngineTemporaryErrorEvent{
-			Err: fmt.Errorf("failed to commit unsafe payload to conductor: %w", err),
+			Err:      fmt.Errorf("failed to commit unsafe payload to conductor: %w", err),
+			ParentEv: "BuildSealed",
 		})
 		return
 	}
@@ -287,6 +295,7 @@ func (d *Sequencer) onBuildSealed(x engine.BuildSealedEvent) {
 		BuildStarted: x.BuildStarted,
 		Envelope:     x.Envelope,
 		Ref:          x.Ref,
+		ParentEv:     "BuildSealed",
 	})
 	d.latest.Ref = x.Ref
 	d.latestSealed = x.Ref
@@ -362,6 +371,7 @@ func (d *Sequencer) onSequencerAction(SequencerActionEvent) {
 			DerivedFrom: eth.L1BlockRef{},
 			Envelope:    payload,
 			Ref:         ref,
+			ParentEv:    "SequencerAction()",
 		})
 		d.latest.Ref = ref
 	} else {
@@ -375,6 +385,7 @@ func (d *Sequencer) onSequencerAction(SequencerActionEvent) {
 				BuildStarted: d.latest.Started,
 				Concluding:   false,
 				DerivedFrom:  eth.L1BlockRef{},
+				ParentEv:     "SequencerAction()",
 			})
 		} else if d.latest == (BuildingState{}) {
 			// If we have not started building anything, start building.
@@ -411,7 +422,7 @@ func (d *Sequencer) onReset(x rollup.ResetEvent) {
 	d.metrics.RecordSequencerReset()
 	// try to cancel any ongoing payload building job
 	if d.latest.Info != (eth.PayloadInfo{}) {
-		d.emitter.Emit(engine.BuildCancelEvent{Info: d.latest.Info})
+		d.emitter.Emit(engine.BuildCancelEvent{Info: d.latest.Info, ParnetEv: "reset"})
 	}
 	d.latest = BuildingState{}
 	// no action to perform until we get a reset-confirmation
@@ -480,7 +491,7 @@ func (d *Sequencer) startBuildingBlock() {
 
 	// If we do not have data to know what to build on, then request a forkchoice update
 	if l2Head == (eth.L2BlockRef{}) {
-		d.emitter.Emit(engine.ForkchoiceRequestEvent{})
+		d.emitter.Emit(engine.ForkchoiceRequestEvent{ParentEv: "StartBuildingBlock()"})
 		return
 	}
 	// If we have already started trying to build on top of this block, we can avoid starting over again.
@@ -511,16 +522,16 @@ func (d *Sequencer) startBuildingBlock() {
 	attrs, err := d.attrBuilder.PreparePayloadAttributes(fetchCtx, l2Head, l1Origin.ID())
 	if err != nil {
 		if errors.Is(err, derive.ErrTemporary) {
-			d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err})
+			d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err, ParentEv: "StartBuildingBlock()"})
 			return
 		} else if errors.Is(err, derive.ErrReset) {
-			d.emitter.Emit(rollup.ResetEvent{Err: err})
+			d.emitter.Emit(rollup.ResetEvent{Err: err, ParentEv: "StartBuildingBlock()"})
 			return
 		} else if errors.Is(err, derive.ErrCritical) {
-			d.emitter.Emit(rollup.CriticalErrorEvent{Err: err})
+			d.emitter.Emit(rollup.CriticalErrorEvent{Err: err, ParentEv: "StartBuildingBlock()"})
 			return
 		} else {
-			d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected attributes-preparation error: %w", err)})
+			d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected attributes-preparation error: %w", err), ParentEv: "StartBuildingBlock()"})
 			return
 		}
 	}
@@ -569,6 +580,7 @@ func (d *Sequencer) startBuildingBlock() {
 
 	d.emitter.Emit(engine.BuildStartEvent{
 		Attributes: withParent,
+		ParentEv:   "StartBuildingBlock()",
 	})
 }
 

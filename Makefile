@@ -75,7 +75,6 @@ cross-op-node: ## Builds cross-platform Docker image for op-node
              fi) \
 	docker buildx bake \
 			--progress plain \
-			--builder=buildx-build \
 			--load \
 			--no-cache \
 			-f docker-bake.hcl \

@@ -13,20 +13,32 @@ import (
 type BuildInvalidEvent struct {
 	Attributes *derive.AttributesWithParent
 	Err        error
+
+	ParentEv string
 }
 
 func (ev BuildInvalidEvent) String() string {
 	return "build-invalid"
 }
 
+func (ev BuildInvalidEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // InvalidPayloadAttributesEvent is a signal to external derivers that the attributes were invalid.
 type InvalidPayloadAttributesEvent struct {
 	Attributes *derive.AttributesWithParent
 	Err        error
+
+	ParentEv string
 }
 
 func (ev InvalidPayloadAttributesEvent) String() string {
 	return "invalid-payload-attributes"
+}
+
+func (ev InvalidPayloadAttributesEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (eq *EngDeriver) onBuildInvalid(ev BuildInvalidEvent) {
@@ -64,7 +76,7 @@ func (eq *EngDeriver) emitDepositsOnlyPayloadAttributesRequest(parent eth.BlockI
 	eq.log.Warn("Holocene active, requesting deposits-only attributes", "parent", parent, "derived_from", derivedFrom)
 	// request deposits-only version
 	eq.emitter.Emit(derive.DepositsOnlyPayloadAttributesRequestEvent{
-		Parent:      parent,
+		ParentBlock: parent,
 		DerivedFrom: derivedFrom,
 	})
 }

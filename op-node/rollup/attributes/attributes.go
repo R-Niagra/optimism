@@ -63,9 +63,9 @@ func (eq *AttributesHandler) OnEvent(ev event.Event) bool {
 	case derive.DerivedAttributesEvent:
 		eq.attributes = x.Attributes
 		eq.sentAttributes = false
-		eq.emitter.Emit(derive.ConfirmReceivedAttributesEvent{})
+		eq.emitter.Emit(derive.ConfirmReceivedAttributesEvent{ParentEv: "DerivedAttributeEvent"})
 		// to make sure we have a pre-state signal to process the attributes from
-		eq.emitter.Emit(engine.PendingSafeRequestEvent{})
+		eq.emitter.Emit(engine.PendingSafeRequestEvent{ParentEv: "DerivedAttributeEvent"})
 	case rollup.ResetEvent:
 		eq.sentAttributes = false
 		eq.attributes = nil
@@ -81,7 +81,7 @@ func (eq *AttributesHandler) OnEvent(ev event.Event) bool {
 		eq.attributes = nil
 		// Time to re-evaluate without attributes.
 		// (the pending-safe state will then be forwarded to our source of attributes).
-		eq.emitter.Emit(engine.PendingSafeRequestEvent{})
+		eq.emitter.Emit(engine.PendingSafeRequestEvent{ParentEv: "invalidPayloadAttributes"})
 	case engine.PayloadSealExpiredErrorEvent:
 		if x.DerivedFrom == (eth.L1BlockRef{}) {
 			return true // from sequencing
@@ -98,7 +98,7 @@ func (eq *AttributesHandler) OnEvent(ev event.Event) bool {
 			"build_id", x.Info.ID, "timestamp", x.Info.Timestamp, "err", x.Err)
 		eq.sentAttributes = false
 		eq.attributes = nil
-		eq.emitter.Emit(engine.PendingSafeRequestEvent{})
+		eq.emitter.Emit(engine.PendingSafeRequestEvent{ParentEv: "payloadSealInvalid"})
 	default:
 		return false
 	}
@@ -111,7 +111,7 @@ func (eq *AttributesHandler) OnEvent(ev event.Event) bool {
 func (eq *AttributesHandler) onPendingSafeUpdate(x engine.PendingSafeUpdateEvent) {
 	if x.Unsafe.Number < x.PendingSafe.Number {
 		// invalid chain state, reset to try and fix it
-		eq.emitter.Emit(rollup.ResetEvent{Err: fmt.Errorf("pending-safe label (%d) may not be ahead of unsafe head label (%d)", x.PendingSafe.Number, x.Unsafe.Number)})
+		eq.emitter.Emit(rollup.ResetEvent{Err: fmt.Errorf("pending-safe label (%d) may not be ahead of unsafe head label (%d)", x.PendingSafe.Number, x.Unsafe.Number), ParentEv: "pendingSafeUpdate"})
 		return
 	}
 
@@ -120,7 +120,7 @@ func (eq *AttributesHandler) onPendingSafeUpdate(x engine.PendingSafeUpdateEvent
 		// Request new attributes to be generated, only if we don't currently have attributes that have yet to be processed.
 		// It is safe to request the pipeline, the attributes-handler is the only user of it,
 		// and the pipeline will not generate another set of attributes until the last set is recognized.
-		eq.emitter.Emit(derive.PipelineStepEvent{PendingSafe: x.PendingSafe})
+		eq.emitter.Emit(derive.PipelineStepEvent{PendingSafe: x.PendingSafe, ParentEv: "PendingStateUpdate"})
 		return
 	}
 
@@ -156,7 +156,7 @@ func (eq *AttributesHandler) onPendingSafeUpdate(x engine.PendingSafeUpdateEvent
 		} else {
 			// append to tip otherwise
 			eq.sentAttributes = true
-			eq.emitter.Emit(engine.BuildStartEvent{Attributes: eq.attributes})
+			eq.emitter.Emit(engine.BuildStartEvent{Attributes: eq.attributes, ParentEv: "pendingSafeUpdate"})
 		}
 	}
 }
@@ -196,6 +196,7 @@ func (eq *AttributesHandler) consolidateNextSafeAttributes(attributes *derive.At
 			Ref:         ref,
 			Concluding:  attributes.Concluding,
 			DerivedFrom: attributes.DerivedFrom,
+			ParentEv:    "pendingSafeUpdate",
 		})
 	}
 

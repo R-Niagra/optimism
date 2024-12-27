@@ -125,16 +125,28 @@ func (fi *Finalizer) FinalizedL1() (out eth.L1BlockRef) {
 
 type FinalizeL1Event struct {
 	FinalizedL1 eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev FinalizeL1Event) String() string {
 	return "finalized-l1"
 }
 
-type TryFinalizeEvent struct{}
+func (ev FinalizeL1Event) Parent() string {
+	return ev.ParentEv
+}
+
+type TryFinalizeEvent struct {
+	ParentEv string
+}
 
 func (ev TryFinalizeEvent) String() string {
 	return "try-finalize"
+}
+
+func (ev TryFinalizeEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (fi *Finalizer) OnEvent(ev event.Event) bool {
@@ -177,7 +189,7 @@ func (fi *Finalizer) onL1Finalized(l1Origin eth.L1BlockRef) {
 	}
 
 	// when the L1 change we can suggest to try to finalize, as the pre-condition for L2 finality has now changed
-	fi.emitter.Emit(TryFinalizeEvent{})
+	fi.emitter.Emit(TryFinalizeEvent{ParentEv: "l1Finalize"})
 }
 
 // onDerivationIdle is called when the pipeline is exhausted of new data (i.e. no more L2 blocks to derive from).
@@ -200,7 +212,7 @@ func (fi *Finalizer) onDerivationIdle(derivedFrom eth.L1BlockRef) {
 	}
 	fi.log.Debug("processing L1 finality information", "l1_finalized", fi.finalizedL1, "derived_from", derivedFrom, "previous", fi.triedFinalizeAt)
 	fi.triedFinalizeAt = derivedFrom.Number
-	fi.emitter.Emit(TryFinalizeEvent{})
+	fi.emitter.Emit(TryFinalizeEvent{ParentEv: "derivationIdle"})
 }
 
 func (fi *Finalizer) tryFinalize() {

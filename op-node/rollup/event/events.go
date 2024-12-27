@@ -7,6 +7,8 @@ type Event interface {
 	// The name must be simple and identify the event type, not the event content.
 	// This name is used for metric-labeling.
 	String() string
+	// Returns the parent of the event if it exists, root otherwise
+	Parent() string
 }
 
 type Deriver interface {
@@ -77,11 +79,16 @@ type NoopEmitter struct{}
 func (e NoopEmitter) Emit(ev Event) {}
 
 type CriticalErrorEvent struct {
-	Err error
+	Err      error
+	ParentEv string
 }
 
 var _ Event = CriticalErrorEvent{}
 
 func (ev CriticalErrorEvent) String() string {
 	return "critical-error"
+}
+
+func (ev CriticalErrorEvent) Parent() string {
+	return ev.ParentEv
 }

@@ -11,16 +11,22 @@ type BuildStartedEvent struct {
 
 	BuildStarted time.Time
 
-	Parent eth.L2BlockRef
+	ParentBlock eth.L2BlockRef
 
 	// if payload should be promoted to (local) safe (must also be pending safe, see DerivedFrom)
 	Concluding bool
 	// payload is promoted to pending-safe if non-zero
 	DerivedFrom eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev BuildStartedEvent) String() string {
 	return "build-started"
+}
+
+func (ev BuildStartedEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (eq *EngDeriver) onBuildStarted(ev BuildStartedEvent) {
@@ -31,6 +37,7 @@ func (eq *EngDeriver) onBuildStarted(ev BuildStartedEvent) {
 			BuildStarted: ev.BuildStarted,
 			Concluding:   ev.Concluding,
 			DerivedFrom:  ev.DerivedFrom,
+			ParentEv:     "BuildStarted",
 		})
 	}
 }

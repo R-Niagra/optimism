@@ -61,10 +61,16 @@ func (eq *CLSync) LowestQueuedUnsafeBlock() eth.L2BlockRef {
 
 type ReceivedUnsafePayloadEvent struct {
 	Envelope *eth.ExecutionPayloadEnvelope
+
+	ParentEv string
 }
 
 func (ev ReceivedUnsafePayloadEvent) String() string {
 	return "received-unsafe-payload"
+}
+
+func (ev ReceivedUnsafePayloadEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (eq *CLSync) OnEvent(ev event.Event) bool {
@@ -181,5 +187,5 @@ func (eq *CLSync) onUnsafePayload(x ReceivedUnsafePayloadEvent) {
 	eq.log.Trace("Next unsafe payload to process", "next", p.ExecutionPayload.ID(), "timestamp", uint64(p.ExecutionPayload.Timestamp))
 
 	// request forkchoice signal, so we can process the payload maybe
-	eq.emitter.Emit(engine.ForkchoiceRequestEvent{})
+	eq.emitter.Emit(engine.ForkchoiceRequestEvent{ParentEv: "unsafePayload"})
 }

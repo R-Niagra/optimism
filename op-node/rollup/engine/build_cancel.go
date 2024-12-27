@@ -13,10 +13,16 @@ import (
 type BuildCancelEvent struct {
 	Info  eth.PayloadInfo
 	Force bool
+
+	ParnetEv string
 }
 
 func (ev BuildCancelEvent) String() string {
 	return "build-cancel"
+}
+
+func (ev BuildCancelEvent) Parent() string {
+	return ev.ParnetEv
 }
 
 func (eq *EngDeriver) onBuildCancel(ev BuildCancelEvent) {
@@ -33,7 +39,7 @@ func (eq *EngDeriver) onBuildCancel(ev BuildCancelEvent) {
 		}
 		eq.log.Error("failed to cancel block building job", "info", ev.Info, "err", err)
 		if !ev.Force {
-			eq.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err})
+			eq.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err, ParentEv: "buildCancel"})
 		}
 	}
 }

@@ -18,10 +18,16 @@ type PayloadProcessEvent struct {
 
 	Envelope *eth.ExecutionPayloadEnvelope
 	Ref      eth.L2BlockRef
+
+	ParentEv string
 }
 
 func (ev PayloadProcessEvent) String() string {
 	return "payload-process"
+}
+
+func (ev PayloadProcessEvent) Parent() string {
+	return ev.ParentEv
 }
 
 func (eq *EngDeriver) onPayloadProcess(ev PayloadProcessEvent) {
@@ -33,7 +39,8 @@ func (eq *EngDeriver) onPayloadProcess(ev PayloadProcessEvent) {
 		ev.Envelope.ExecutionPayload, ev.Envelope.ParentBeaconBlockRoot)
 	if err != nil {
 		eq.emitter.Emit(rollup.EngineTemporaryErrorEvent{
-			Err: fmt.Errorf("failed to insert execution payload: %w", err),
+			Err:      fmt.Errorf("failed to insert execution payload: %w", err),
+			ParentEv: "payloadProcess",
 		})
 		return
 	}
@@ -49,6 +56,7 @@ func (eq *EngDeriver) onPayloadProcess(ev PayloadProcessEvent) {
 		eq.emitter.Emit(PayloadInvalidEvent{
 			Envelope: ev.Envelope,
 			Err:      eth.NewPayloadErr(ev.Envelope.ExecutionPayload, status),
+			ParentEv: "payloadProcess",
 		})
 		return
 	case eth.ExecutionValid:

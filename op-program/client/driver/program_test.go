@@ -154,8 +154,14 @@ func TestProgramDeriver(t *testing.T) {
 	})
 }
 
-type TestEvent struct{}
+type TestEvent struct {
+	ParentEv string
+}
 
 func (ev TestEvent) String() string {
 	return "test-event"
+}
+
+func (ev TestEvent) Parent() string {
+	return ev.ParentEv
 }

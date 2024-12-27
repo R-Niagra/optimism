@@ -26,18 +26,29 @@ type Metrics interface {
 // forkchoice-update event, to signal the latest forkchoice to other derivers.
 // This helps decouple derivers from the actual engine state,
 // while also not making the derivers wait for a forkchoice update at random.
-type ForkchoiceRequestEvent struct{}
+type ForkchoiceRequestEvent struct {
+	ParentEv string
+}
 
 func (ev ForkchoiceRequestEvent) String() string {
 	return "forkchoice-request"
 }
 
+func (ev ForkchoiceRequestEvent) Parent() string {
+	return ev.ParentEv
+}
+
 type ForkchoiceUpdateEvent struct {
 	UnsafeL2Head, SafeL2Head, FinalizedL2Head eth.L2BlockRef
+	ParentEv                                  string
 }
 
 func (ev ForkchoiceUpdateEvent) String() string {
 	return "forkchoice-update"
+}
+
+func (ev ForkchoiceUpdateEvent) Parent() string {
+	return ev.ParentEv
 }
 
 // PromoteUnsafeEvent signals that the given block may now become a canonical unsafe block.
@@ -46,65 +57,105 @@ func (ev ForkchoiceUpdateEvent) String() string {
 // but manually, duplicate with the newer events processing code-path.
 // See EngineController.InsertUnsafePayload.
 type PromoteUnsafeEvent struct {
-	Ref eth.L2BlockRef
+	Ref      eth.L2BlockRef
+	ParentEv string
 }
 
 func (ev PromoteUnsafeEvent) String() string {
 	return "promote-unsafe"
 }
 
+func (ev PromoteUnsafeEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // RequestCrossUnsafeEvent signals that a CrossUnsafeUpdateEvent is needed.
-type RequestCrossUnsafeEvent struct{}
+type RequestCrossUnsafeEvent struct {
+	ParentEv string
+}
 
 func (ev RequestCrossUnsafeEvent) String() string {
 	return "request-cross-unsafe"
+}
+
+func (ev RequestCrossUnsafeEvent) Parent() string {
+	return ev.ParentEv
 }
 
 // UnsafeUpdateEvent signals that the given block is now considered safe.
 // This is pre-forkchoice update; the change may not be reflected yet in the EL.
 type UnsafeUpdateEvent struct {
 	Ref eth.L2BlockRef
+
+	ParentEv string
 }
 
 func (ev UnsafeUpdateEvent) String() string {
 	return "unsafe-update"
 }
 
+func (ev UnsafeUpdateEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // PromoteCrossUnsafeEvent signals that the given block may be promoted to cross-unsafe.
 type PromoteCrossUnsafeEvent struct {
-	Ref eth.L2BlockRef
+	Ref      eth.L2BlockRef
+	ParentEv string
 }
 
 func (ev PromoteCrossUnsafeEvent) String() string {
 	return "promote-cross-unsafe"
 }
 
+func (ev PromoteCrossUnsafeEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // CrossUnsafeUpdateEvent signals that the given block is now considered cross-unsafe.
 type CrossUnsafeUpdateEvent struct {
 	CrossUnsafe eth.L2BlockRef
 	LocalUnsafe eth.L2BlockRef
+
+	ParentEv string
 }
 
 func (ev CrossUnsafeUpdateEvent) String() string {
 	return "cross-unsafe-update"
 }
 
+func (ev CrossUnsafeUpdateEvent) Parent() string {
+	return ev.ParentEv
+}
+
 type PendingSafeUpdateEvent struct {
 	PendingSafe eth.L2BlockRef
 	Unsafe      eth.L2BlockRef // tip, added to the signal, to determine if there are existing blocks to consolidate
+
+	ParentEv string
 }
 
 func (ev PendingSafeUpdateEvent) String() string {
 	return "pending-safe-update"
 }
 
+func (ev PendingSafeUpdateEvent) Parent() string {
+	return ev.ParentEv
+}
+
 type InteropPendingSafeChangedEvent struct {
 	Ref         eth.L2BlockRef
 	DerivedFrom eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev InteropPendingSafeChangedEvent) String() string {
 	return "interop-pending-safe-changed"
+}
+
+func (ev InteropPendingSafeChangedEvent) Parent() string {
+	return ev.ParentEv
 }
 
 // PromotePendingSafeEvent signals that a block can be marked as pending-safe, and/or safe.
@@ -112,56 +163,92 @@ type PromotePendingSafeEvent struct {
 	Ref         eth.L2BlockRef
 	Concluding  bool // Concludes the pending phase, so can be promoted to (local) safe
 	DerivedFrom eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev PromotePendingSafeEvent) String() string {
 	return "promote-pending-safe"
 }
 
+func (ev PromotePendingSafeEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // PromoteLocalSafeEvent signals that a block can be promoted to local-safe.
 type PromoteLocalSafeEvent struct {
 	Ref         eth.L2BlockRef
 	DerivedFrom eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev PromoteLocalSafeEvent) String() string {
 	return "promote-local-safe"
 }
 
+func (ev PromoteLocalSafeEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // RequestCrossSafeEvent signals that a CrossSafeUpdate is needed.
-type RequestCrossSafeEvent struct{}
+type RequestCrossSafeEvent struct {
+	ParentEv string
+}
 
 func (ev RequestCrossSafeEvent) String() string {
 	return "request-cross-safe-update"
 }
 
+func (ev RequestCrossSafeEvent) Parent() string {
+	return ev.ParentEv
+}
+
 type CrossSafeUpdateEvent struct {
 	CrossSafe eth.L2BlockRef
 	LocalSafe eth.L2BlockRef
+
+	ParentEv string
 }
 
 func (ev CrossSafeUpdateEvent) String() string {
 	return "cross-safe-update"
 }
 
+func (ev CrossSafeUpdateEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // LocalSafeUpdateEvent signals that a block is now considered to be local-safe.
 type LocalSafeUpdateEvent struct {
 	Ref         eth.L2BlockRef
 	DerivedFrom eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev LocalSafeUpdateEvent) String() string {
 	return "local-safe-update"
 }
 
+func (ev LocalSafeUpdateEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // PromoteSafeEvent signals that a block can be promoted to cross-safe.
 type PromoteSafeEvent struct {
 	Ref         eth.L2BlockRef
 	DerivedFrom eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev PromoteSafeEvent) String() string {
 	return "promote-safe"
+}
+
+func (ev PromoteSafeEvent) Parent() string {
+	return ev.ParentEv
 }
 
 // SafeDerivedEvent signals that a block was determined to be safe, and derived from the given L1 block.
@@ -169,39 +256,69 @@ func (ev PromoteSafeEvent) String() string {
 type SafeDerivedEvent struct {
 	Safe        eth.L2BlockRef
 	DerivedFrom eth.L1BlockRef
+
+	ParentEv string
 }
 
 func (ev SafeDerivedEvent) String() string {
 	return "safe-derived"
 }
 
+func (ev SafeDerivedEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // ProcessAttributesEvent signals to immediately process the attributes.
 type ProcessAttributesEvent struct {
 	Attributes *derive.AttributesWithParent
+
+	ParentEv string
 }
 
 func (ev ProcessAttributesEvent) String() string {
 	return "process-attributes"
 }
 
-type PendingSafeRequestEvent struct{}
+func (ev ProcessAttributesEvent) Parent() string {
+	return ev.ParentEv
+}
+
+type PendingSafeRequestEvent struct {
+	ParentEv string
+}
 
 func (ev PendingSafeRequestEvent) String() string {
 	return "pending-safe-request"
 }
 
+func (ev PendingSafeRequestEvent) Parent() string {
+	return ev.ParentEv
+}
+
 type ProcessUnsafePayloadEvent struct {
 	Envelope *eth.ExecutionPayloadEnvelope
+
+	ParentEv string
 }
 
 func (ev ProcessUnsafePayloadEvent) String() string {
 	return "process-unsafe-payload"
 }
 
-type TryBackupUnsafeReorgEvent struct{}
+func (ev ProcessUnsafePayloadEvent) Parent() string {
+	return ev.ParentEv
+}
+
+type TryBackupUnsafeReorgEvent struct {
+	ParentEv string
+}
 
 func (ev TryBackupUnsafeReorgEvent) String() string {
 	return "try-backup-unsafe-reorg"
+}
+
+func (ev TryBackupUnsafeReorgEvent) Parent() string {
+	return ev.ParentEv
 }
 
 type TryUpdateEngineEvent struct {
@@ -210,10 +327,16 @@ type TryUpdateEngineEvent struct {
 	BuildStarted  time.Time
 	InsertStarted time.Time
 	Envelope      *eth.ExecutionPayloadEnvelope
+
+	ParentEv string
 }
 
 func (ev TryUpdateEngineEvent) String() string {
 	return "try-update-engine"
+}
+
+func (ev TryUpdateEngineEvent) Parent() string {
+	return ev.ParentEv
 }
 
 // Checks for the existence of the Envelope field, which is only
@@ -267,53 +390,88 @@ func (ev TryUpdateEngineEvent) getBlockProcessingMetrics() []interface{} {
 
 type ForceEngineResetEvent struct {
 	Unsafe, Safe, Finalized eth.L2BlockRef
+	ParentEv                string
 }
 
 func (ev ForceEngineResetEvent) String() string {
 	return "force-engine-reset"
 }
 
+func (ev ForceEngineResetEvent) Parent() string {
+	return ev.ParentEv
+}
+
 type EngineResetConfirmedEvent struct {
 	Unsafe, Safe, Finalized eth.L2BlockRef
+
+	ParentEv string
 }
 
 func (ev EngineResetConfirmedEvent) String() string {
 	return "engine-reset-confirmed"
 }
 
+func (ev EngineResetConfirmedEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // PromoteFinalizedEvent signals that a block can be marked as finalized.
 type PromoteFinalizedEvent struct {
 	Ref eth.L2BlockRef
+
+	ParentEv string
 }
 
 func (ev PromoteFinalizedEvent) String() string {
 	return "promote-finalized"
 }
 
+func (ev PromoteFinalizedEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // FinalizedUpdateEvent signals that a block has been marked as finalized.
 type FinalizedUpdateEvent struct {
 	Ref eth.L2BlockRef
+
+	ParentEv string
 }
 
 func (ev FinalizedUpdateEvent) String() string {
 	return "finalized-update"
 }
 
+func (ev FinalizedUpdateEvent) Parent() string {
+	return ev.ParentEv
+}
+
 // RequestFinalizedUpdateEvent signals that a FinalizedUpdateEvent is needed.
-type RequestFinalizedUpdateEvent struct{}
+type RequestFinalizedUpdateEvent struct {
+	ParentEv string
+}
 
 func (ev RequestFinalizedUpdateEvent) String() string {
 	return "request-finalized-update"
+}
+
+func (ev RequestFinalizedUpdateEvent) Parent() string {
+	return ev.ParentEv
 }
 
 // CrossUpdateRequestEvent triggers update events to be emitted, repeating the current state.
 type CrossUpdateRequestEvent struct {
 	CrossUnsafe bool
 	CrossSafe   bool
+
+	ParentEv string
 }
 
 func (ev CrossUpdateRequestEvent) String() string {
 	return "cross-update-request"
+}
+
+func (ev CrossUpdateRequestEvent) Parent() string {
+	return ev.ParentEv
 }
 
 type EngDeriver struct {
@@ -360,11 +518,11 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 		if err != nil {
 			// If we needed to perform a network call, then we should yield even if we did not encounter an error.
 			if errors.Is(err, derive.ErrReset) {
-				d.emitter.Emit(rollup.ResetEvent{Err: err})
+				d.emitter.Emit(rollup.ResetEvent{Err: err, ParentEv: "tryBackupUnsafeReorg"})
 			} else if errors.Is(err, derive.ErrTemporary) {
-				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err})
+				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err, ParentEv: "tryBackupUnsafeReorg"})
 			} else {
-				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected TryBackupUnsafeReorg error type: %w", err)})
+				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected TryBackupUnsafeReorg error type: %w", err), ParentEv: "tryBackupUnsafeReorg"})
 			}
 		}
 	case TryUpdateEngineEvent:
@@ -372,11 +530,11 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 		// perform a network call, then we should yield even if we did not encounter an error.
 		if err := d.ec.TryUpdateEngine(d.ctx); err != nil && !errors.Is(err, ErrNoFCUNeeded) {
 			if errors.Is(err, derive.ErrReset) {
-				d.emitter.Emit(rollup.ResetEvent{Err: err})
+				d.emitter.Emit(rollup.ResetEvent{Err: err, ParentEv: "tryUpdateEngine"})
 			} else if errors.Is(err, derive.ErrTemporary) {
-				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err})
+				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err, ParentEv: "tryUpdateEngine"})
 			} else {
-				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected TryUpdateEngine error type: %w", err)})
+				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected TryUpdateEngine error type: %w", err), ParentEv: "tryUpdateEngine"})
 			}
 		} else if x.triggeredByPayloadSuccess() {
 			logValues := x.getBlockProcessingMetrics()
@@ -396,11 +554,11 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 			// unify the events handler with the engine-controller,
 			// remove a lot of code, and not do this error translation.
 			if errors.Is(err, derive.ErrReset) {
-				d.emitter.Emit(rollup.ResetEvent{Err: err})
+				d.emitter.Emit(rollup.ResetEvent{Err: err, ParentEv: "insertUnsafePayload"})
 			} else if errors.Is(err, derive.ErrTemporary) {
-				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err})
+				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err, ParentEv: "insertUnsafePayload"})
 			} else {
-				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected InsertUnsafePayload error type: %w", err)})
+				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected InsertUnsafePayload error type: %w", err), ParentEv: "insertUnsafePayload"})
 			}
 		} else {
 			d.log.Info("successfully processed payload", "ref", ref, "txs", len(x.Envelope.ExecutionPayload.Transactions))
@@ -410,17 +568,20 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 			UnsafeL2Head:    d.ec.UnsafeL2Head(),
 			SafeL2Head:      d.ec.SafeL2Head(),
 			FinalizedL2Head: d.ec.Finalized(),
+			ParentEv:        "forkChoiceRequest",
 		})
 	case ForceEngineResetEvent:
 		ForceEngineReset(d.ec, x)
 
 		// Time to apply the changes to the underlying engine
-		d.emitter.Emit(TryUpdateEngineEvent{})
+		d.emitter.Emit(TryUpdateEngineEvent{ParentEv: "ForceEngineReset"})
 
 		log.Debug("Reset of Engine is completed",
 			"safeHead", x.Safe, "unsafe", x.Unsafe, "safe_timestamp", x.Safe.Time,
 			"unsafe_timestamp", x.Unsafe.Time)
-		d.emitter.Emit(EngineResetConfirmedEvent(x))
+		resetConfirmed := EngineResetConfirmedEvent(x)
+		resetConfirmed.ParentEv = "ForceEngineReset"
+		d.emitter.Emit(resetConfirmed)
 	case PromoteUnsafeEvent:
 		// Backup unsafeHead when new block is not built on original unsafe head.
 		if d.ec.unsafeHead.Number >= x.Ref.Number {
@@ -434,7 +595,7 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 			d.emitter.Emit(PromoteCrossUnsafeEvent(x))
 		}
 		// Try to apply the forkchoice changes
-		d.emitter.Emit(TryUpdateEngineEvent{})
+		d.emitter.Emit(TryUpdateEngineEvent{ParentEv: "unsafeUpdateEvent"})
 	case PromoteCrossUnsafeEvent:
 		d.ec.SetCrossUnsafeHead(x.Ref)
 		d.emitter.Emit(CrossUnsafeUpdateEvent{
@@ -455,6 +616,7 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 		d.emitter.Emit(PendingSafeUpdateEvent{
 			PendingSafe: d.ec.PendingSafeL2Head(),
 			Unsafe:      d.ec.UnsafeL2Head(),
+			ParentEv:    "pendingSafeRequest",
 		})
 	case PromotePendingSafeEvent:
 		// Only promote if not already stale.
@@ -471,6 +633,7 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 			d.emitter.Emit(PromoteLocalSafeEvent{
 				Ref:         x.Ref,
 				DerivedFrom: x.DerivedFrom,
+				ParentEv:    "promotePendingSafe",
 			})
 		}
 		// TODO(#12646): temporary interop work-around, assumes Holocene local-safe progression behavior.
@@ -481,7 +644,9 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 	case PromoteLocalSafeEvent:
 		d.log.Debug("Updating local safe", "local_safe", x.Ref, "safe", d.ec.SafeL2Head(), "unsafe", d.ec.UnsafeL2Head())
 		d.ec.SetLocalSafeHead(x.Ref)
-		d.emitter.Emit(LocalSafeUpdateEvent(x))
+		localSafeUpdateEv := LocalSafeUpdateEvent(x)
+		localSafeUpdateEv.ParentEv = "promoteLocalSafe"
+		d.emitter.Emit(localSafeUpdateEv)
 	case LocalSafeUpdateEvent:
 		// pre-interop everything that is local-safe is also immediately cross-safe.
 		if !d.cfg.IsInterop(x.Ref.Time) {
@@ -497,7 +662,7 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 			LocalSafe: d.ec.LocalSafeL2Head(),
 		})
 		// Try to apply the forkchoice changes
-		d.emitter.Emit(TryUpdateEngineEvent{})
+		d.emitter.Emit(TryUpdateEngineEvent{ParentEv: "promoteSafeEvent"})
 	case PromoteFinalizedEvent:
 		if x.Ref.Number < d.ec.Finalized().Number {
 			d.log.Error("Cannot rewind finality,", "ref", x.Ref, "finalized", d.ec.Finalized())
@@ -510,7 +675,7 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 		d.ec.SetFinalizedHead(x.Ref)
 		d.emitter.Emit(FinalizedUpdateEvent(x))
 		// Try to apply the forkchoice changes
-		d.emitter.Emit(TryUpdateEngineEvent{})
+		d.emitter.Emit(TryUpdateEngineEvent{ParentEv: "promoteFinalizedEvent"})
 	case RequestFinalizedUpdateEvent:
 		d.emitter.Emit(FinalizedUpdateEvent{Ref: d.ec.Finalized()})
 	case CrossUpdateRequestEvent:
