@@ -37,6 +37,7 @@ func (eq *EngDeriver) onBuildStarted(ev BuildStartedEvent) {
 			BuildStarted: ev.BuildStarted,
 			Concluding:   ev.Concluding,
 			DerivedFrom:  ev.DerivedFrom,
+			ParentEv:     "BuildStarted",
 		})
 	}
 }

@@ -187,5 +187,5 @@ func (eq *CLSync) onUnsafePayload(x ReceivedUnsafePayloadEvent) {
 	eq.log.Trace("Next unsafe payload to process", "next", p.ExecutionPayload.ID(), "timestamp", uint64(p.ExecutionPayload.Timestamp))
 
 	// request forkchoice signal, so we can process the payload maybe
-	eq.emitter.Emit(engine.ForkchoiceRequestEvent{})
+	eq.emitter.Emit(engine.ForkchoiceRequestEvent{ParentEv: "unsafePayload"})
 }

@@ -518,11 +518,11 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 		if err != nil {
 			// If we needed to perform a network call, then we should yield even if we did not encounter an error.
 			if errors.Is(err, derive.ErrReset) {
-				d.emitter.Emit(rollup.ResetEvent{Err: err})
+				d.emitter.Emit(rollup.ResetEvent{Err: err, ParentEv: "tryBackupUnsafeReorg"})
 			} else if errors.Is(err, derive.ErrTemporary) {
-				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err})
+				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err, ParentEv: "tryBackupUnsafeReorg"})
 			} else {
-				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected TryBackupUnsafeReorg error type: %w", err)})
+				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected TryBackupUnsafeReorg error type: %w", err), ParentEv: "tryBackupUnsafeReorg"})
 			}
 		}
 	case TryUpdateEngineEvent:
@@ -530,11 +530,11 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 		// perform a network call, then we should yield even if we did not encounter an error.
 		if err := d.ec.TryUpdateEngine(d.ctx); err != nil && !errors.Is(err, ErrNoFCUNeeded) {
 			if errors.Is(err, derive.ErrReset) {
-				d.emitter.Emit(rollup.ResetEvent{Err: err})
+				d.emitter.Emit(rollup.ResetEvent{Err: err, ParentEv: "tryUpdateEngine"})
 			} else if errors.Is(err, derive.ErrTemporary) {
-				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err})
+				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err, ParentEv: "tryUpdateEngine"})
 			} else {
-				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected TryUpdateEngine error type: %w", err)})
+				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected TryUpdateEngine error type: %w", err), ParentEv: "tryUpdateEngine"})
 			}
 		} else if x.triggeredByPayloadSuccess() {
 			logValues := x.getBlockProcessingMetrics()
@@ -554,11 +554,11 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 			// unify the events handler with the engine-controller,
 			// remove a lot of code, and not do this error translation.
 			if errors.Is(err, derive.ErrReset) {
-				d.emitter.Emit(rollup.ResetEvent{Err: err})
+				d.emitter.Emit(rollup.ResetEvent{Err: err, ParentEv: "insertUnsafePayload"})
 			} else if errors.Is(err, derive.ErrTemporary) {
-				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err})
+				d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err, ParentEv: "insertUnsafePayload"})
 			} else {
-				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected InsertUnsafePayload error type: %w", err)})
+				d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unexpected InsertUnsafePayload error type: %w", err), ParentEv: "insertUnsafePayload"})
 			}
 		} else {
 			d.log.Info("successfully processed payload", "ref", ref, "txs", len(x.Envelope.ExecutionPayload.Transactions))
@@ -568,17 +568,20 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 			UnsafeL2Head:    d.ec.UnsafeL2Head(),
 			SafeL2Head:      d.ec.SafeL2Head(),
 			FinalizedL2Head: d.ec.Finalized(),
+			ParentEv:        "forkChoiceRequest",
 		})
 	case ForceEngineResetEvent:
 		ForceEngineReset(d.ec, x)
 
 		// Time to apply the changes to the underlying engine
-		d.emitter.Emit(TryUpdateEngineEvent{})
+		d.emitter.Emit(TryUpdateEngineEvent{ParentEv: "ForceEngineReset"})
 
 		log.Debug("Reset of Engine is completed",
 			"safeHead", x.Safe, "unsafe", x.Unsafe, "safe_timestamp", x.Safe.Time,
 			"unsafe_timestamp", x.Unsafe.Time)
-		d.emitter.Emit(EngineResetConfirmedEvent(x))
+		resetConfirmed := EngineResetConfirmedEvent(x)
+		resetConfirmed.ParentEv = "ForceEngineReset"
+		d.emitter.Emit(resetConfirmed)
 	case PromoteUnsafeEvent:
 		// Backup unsafeHead when new block is not built on original unsafe head.
 		if d.ec.unsafeHead.Number >= x.Ref.Number {
@@ -592,7 +595,7 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 			d.emitter.Emit(PromoteCrossUnsafeEvent(x))
 		}
 		// Try to apply the forkchoice changes
-		d.emitter.Emit(TryUpdateEngineEvent{})
+		d.emitter.Emit(TryUpdateEngineEvent{ParentEv: "unsafeUpdateEvent"})
 	case PromoteCrossUnsafeEvent:
 		d.ec.SetCrossUnsafeHead(x.Ref)
 		d.emitter.Emit(CrossUnsafeUpdateEvent{
@@ -613,6 +616,7 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 		d.emitter.Emit(PendingSafeUpdateEvent{
 			PendingSafe: d.ec.PendingSafeL2Head(),
 			Unsafe:      d.ec.UnsafeL2Head(),
+			ParentEv:    "pendingSafeRequest",
 		})
 	case PromotePendingSafeEvent:
 		// Only promote if not already stale.
@@ -629,6 +633,7 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 			d.emitter.Emit(PromoteLocalSafeEvent{
 				Ref:         x.Ref,
 				DerivedFrom: x.DerivedFrom,
+				ParentEv:    "promotePendingSafe",
 			})
 		}
 		// TODO(#12646): temporary interop work-around, assumes Holocene local-safe progression behavior.
@@ -639,7 +644,9 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 	case PromoteLocalSafeEvent:
 		d.log.Debug("Updating local safe", "local_safe", x.Ref, "safe", d.ec.SafeL2Head(), "unsafe", d.ec.UnsafeL2Head())
 		d.ec.SetLocalSafeHead(x.Ref)
-		d.emitter.Emit(LocalSafeUpdateEvent(x))
+		localSafeUpdateEv := LocalSafeUpdateEvent(x)
+		localSafeUpdateEv.ParentEv = "promoteLocalSafe"
+		d.emitter.Emit(localSafeUpdateEv)
 	case LocalSafeUpdateEvent:
 		// pre-interop everything that is local-safe is also immediately cross-safe.
 		if !d.cfg.IsInterop(x.Ref.Time) {
@@ -655,7 +662,7 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 			LocalSafe: d.ec.LocalSafeL2Head(),
 		})
 		// Try to apply the forkchoice changes
-		d.emitter.Emit(TryUpdateEngineEvent{})
+		d.emitter.Emit(TryUpdateEngineEvent{ParentEv: "promoteSafeEvent"})
 	case PromoteFinalizedEvent:
 		if x.Ref.Number < d.ec.Finalized().Number {
 			d.log.Error("Cannot rewind finality,", "ref", x.Ref, "finalized", d.ec.Finalized())
@@ -668,7 +675,7 @@ func (d *EngDeriver) OnEvent(ev event.Event) bool {
 		d.ec.SetFinalizedHead(x.Ref)
 		d.emitter.Emit(FinalizedUpdateEvent(x))
 		// Try to apply the forkchoice changes
-		d.emitter.Emit(TryUpdateEngineEvent{})
+		d.emitter.Emit(TryUpdateEngineEvent{ParentEv: "promoteFinalizedEvent"})
 	case RequestFinalizedUpdateEvent:
 		d.emitter.Emit(FinalizedUpdateEvent{Ref: d.ec.Finalized()})
 	case CrossUpdateRequestEvent:

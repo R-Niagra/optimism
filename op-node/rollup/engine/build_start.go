@@ -39,6 +39,7 @@ func (eq *EngDeriver) onBuildStart(ev BuildStartEvent) {
 		UnsafeL2Head:    ev.Attributes.Parent,
 		SafeL2Head:      eq.ec.safeHead,
 		FinalizedL2Head: eq.ec.finalizedHead,
+		ParentEv:        "buildStart",
 	}
 	if fcEvent.UnsafeL2Head.Number < fcEvent.FinalizedL2Head.Number {
 		err := fmt.Errorf("invalid block-building pre-state, unsafe head %s is behind finalized head %s", fcEvent.UnsafeL2Head, fcEvent.FinalizedL2Head)
@@ -56,16 +57,16 @@ func (eq *EngDeriver) onBuildStart(ev BuildStartEvent) {
 		switch errTyp {
 		case BlockInsertTemporaryErr:
 			// RPC errors are recoverable, we can retry the buffered payload attributes later.
-			eq.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: fmt.Errorf("temporarily cannot insert new safe block: %w", err)})
+			eq.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: fmt.Errorf("temporarily cannot insert new safe block: %w", err), ParentEv: "FCU"})
 			return
 		case BlockInsertPrestateErr:
-			eq.emitter.Emit(rollup.ResetEvent{Err: fmt.Errorf("need reset to resolve pre-state problem: %w", err)})
+			eq.emitter.Emit(rollup.ResetEvent{Err: fmt.Errorf("need reset to resolve pre-state problem: %w", err), ParentEv: "FCU"})
 			return
 		case BlockInsertPayloadErr:
-			eq.emitter.Emit(BuildInvalidEvent{Attributes: ev.Attributes, Err: err})
+			eq.emitter.Emit(BuildInvalidEvent{Attributes: ev.Attributes, Err: err, ParentEv: "FCU"})
 			return
 		default:
-			eq.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unknown error type %d: %w", errTyp, err)})
+			eq.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("unknown error type %d: %w", errTyp, err), ParentEv: "FCU"})
 			return
 		}
 	}
@@ -77,5 +78,6 @@ func (eq *EngDeriver) onBuildStart(ev BuildStartEvent) {
 		Concluding:   ev.Attributes.Concluding,
 		DerivedFrom:  ev.Attributes.DerivedFrom,
 		ParentBlock:  ev.Attributes.Parent,
+		ParentEv:     "FCU",
 	})
 }

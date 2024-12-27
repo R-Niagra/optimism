@@ -152,7 +152,7 @@ func (s *Driver) eventLoop() {
 
 	// reqStep requests a derivation step nicely, with a delay if this is a reattempt, or not at all if we already scheduled a reattempt.
 	reqStep := func() {
-		s.emitter.Emit(StepReqEvent{})
+		s.emitter.Emit(StepReqEvent{ParentEv: "root"})
 	}
 
 	// We call reqStep right away to finish syncing to the tip of the chain if we're behind.
@@ -263,9 +263,9 @@ func (s *Driver) eventLoop() {
 			s.emitter.Emit(finality.FinalizeL1Event{FinalizedL1: newL1Finalized, ParentEv: "l1FinalizedSig"})
 			reqStep() // we may be able to mark more L2 data as finalized now
 		case <-s.sched.NextDelayedStep():
-			s.emitter.Emit(StepAttemptEvent{})
+			s.emitter.Emit(StepAttemptEvent{ParentEv: "NextDelayedStep"})
 		case <-s.sched.NextStep():
-			s.emitter.Emit(StepAttemptEvent{})
+			s.emitter.Emit(StepAttemptEvent{ParentEv: "NextStep"})
 		case respCh := <-s.stateReq:
 			respCh <- struct{}{}
 		case respCh := <-s.forceReset:
@@ -321,12 +321,12 @@ func (s *SyncDeriver) OnEvent(ev event.Event) bool {
 		s.onResetEvent(x)
 	case rollup.L1TemporaryErrorEvent:
 		s.Log.Warn("L1 temporary error", "err", x.Err)
-		s.Emitter.Emit(StepReqEvent{})
+		s.Emitter.Emit(StepReqEvent{ParentEv: "L1TempError"})
 	case rollup.EngineTemporaryErrorEvent:
 		s.Log.Warn("Engine temporary error", "err", x.Err)
 		// Make sure that for any temporarily failed attributes we retry processing.
 		// This will be triggered by a step. After appropriate backoff.
-		s.Emitter.Emit(StepReqEvent{})
+		s.Emitter.Emit(StepReqEvent{ParentEv: "EngineTempError"})
 	case engine.EngineResetConfirmedEvent:
 		s.onEngineConfirmedReset(x)
 	case derive.DeriverIdleEvent:
@@ -351,7 +351,7 @@ func (s *SyncDeriver) onSafeDerivedBlock(x engine.SafeDerivedEvent) {
 			// At this point our state is in a potentially inconsistent state as we've updated the safe head
 			// in the execution client but failed to post process it. Reset the pipeline so the safe head rolls back
 			// a little (it always rolls back at least 1 block) and then it will retry storing the entry
-			s.Emitter.Emit(rollup.ResetEvent{Err: fmt.Errorf("safe head notifications failed: %w", err)})
+			s.Emitter.Emit(rollup.ResetEvent{Err: fmt.Errorf("safe head notifications failed: %w", err), ParentEv: "safeDerivedBlock"})
 		}
 	}
 }
@@ -382,14 +382,14 @@ func (s *SyncDeriver) onEngineConfirmedReset(x engine.EngineResetConfirmedEvent)
 			}
 		}
 	}
-	s.Emitter.Emit(derive.ConfirmPipelineResetEvent{})
+	s.Emitter.Emit(derive.ConfirmPipelineResetEvent{ParentEv: "engineConfirmedReset"})
 }
 
 func (s *SyncDeriver) onResetEvent(x rollup.ResetEvent) {
 	// If the system corrupts, e.g. due to a reorg, simply reset it
 	s.Log.Warn("Deriver system is resetting", "err", x.Err)
-	s.Emitter.Emit(StepReqEvent{})
-	s.Emitter.Emit(engine.ResetEngineRequestEvent{})
+	s.Emitter.Emit(StepReqEvent{ParentEv: "deriverReset"})
+	s.Emitter.Emit(engine.ResetEngineRequestEvent{ParentEv: "deriverReset"})
 }
 
 // SyncStep performs the sequence of encapsulated syncing steps.
@@ -414,12 +414,12 @@ func (s *SyncDeriver) SyncStep() {
 		return
 	}
 
-	s.Emitter.Emit(engine.TryBackupUnsafeReorgEvent{})
+	s.Emitter.Emit(engine.TryBackupUnsafeReorgEvent{ParentEv: "SyncStep()"})
 	if !drain() {
 		return
 	}
 
-	s.Emitter.Emit(engine.TryUpdateEngineEvent{})
+	s.Emitter.Emit(engine.TryUpdateEngineEvent{ParentEv: "SyncStep()"})
 	if !drain() {
 		return
 	}
@@ -440,12 +440,12 @@ func (s *SyncDeriver) SyncStep() {
 	// Instead, we request the engine to repeat where its pending-safe head is at.
 	// Upon the pending-safe signal the attributes deriver can then ask the pipeline
 	// to generate new attributes, if no attributes are known already.
-	s.Emitter.Emit(engine.PendingSafeRequestEvent{})
+	s.Emitter.Emit(engine.PendingSafeRequestEvent{ParentEv: "SyncStep()"})
 
 	// If interop is configured, we have to run the engine events,
 	// to ensure cross-L2 safety is continuously verified against the interop-backend.
 	if s.Config.InteropTime != nil {
-		s.Emitter.Emit(engine.CrossUpdateRequestEvent{})
+		s.Emitter.Emit(engine.CrossUpdateRequestEvent{ParentEv: "SyncStep()"})
 	}
 }
 

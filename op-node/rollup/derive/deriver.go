@@ -161,31 +161,31 @@ func (d *PipelineDeriver) OnEvent(ev event.Event) bool {
 		attrib, err := d.pipeline.Step(d.ctx, x.PendingSafe)
 		postOrigin := d.pipeline.Origin()
 		if preOrigin != postOrigin {
-			d.emitter.Emit(DeriverL1StatusEvent{Origin: postOrigin, LastL2: x.PendingSafe})
+			d.emitter.Emit(DeriverL1StatusEvent{Origin: postOrigin, LastL2: x.PendingSafe, ParentEv: "pipelineStep"})
 		}
 		if err == io.EOF {
 			d.pipeline.log.Debug("Derivation process went idle", "progress", d.pipeline.Origin(), "err", err)
-			d.emitter.Emit(DeriverIdleEvent{Origin: d.pipeline.Origin()})
+			d.emitter.Emit(DeriverIdleEvent{Origin: d.pipeline.Origin(), ParentEv: "pipelineStep"})
 		} else if err != nil && errors.Is(err, EngineELSyncing) {
 			d.pipeline.log.Debug("Derivation process went idle because the engine is syncing", "progress", d.pipeline.Origin(), "err", err)
-			d.emitter.Emit(DeriverIdleEvent{Origin: d.pipeline.Origin()})
+			d.emitter.Emit(DeriverIdleEvent{Origin: d.pipeline.Origin(), ParentEv: "pipelineStep"})
 		} else if err != nil && errors.Is(err, ErrReset) {
-			d.emitter.Emit(rollup.ResetEvent{Err: err})
+			d.emitter.Emit(rollup.ResetEvent{Err: err, ParentEv: "pipelineStep"})
 		} else if err != nil && errors.Is(err, ErrTemporary) {
-			d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err})
+			d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err, ParentEv: "pipelineStep"})
 		} else if err != nil && errors.Is(err, ErrCritical) {
-			d.emitter.Emit(rollup.CriticalErrorEvent{Err: err})
+			d.emitter.Emit(rollup.CriticalErrorEvent{Err: err, ParentEv: "pipelineStep"})
 		} else if err != nil && errors.Is(err, NotEnoughData) {
 			// don't do a backoff for this error
-			d.emitter.Emit(DeriverMoreEvent{})
+			d.emitter.Emit(DeriverMoreEvent{ParentEv: "pipelineStep"})
 		} else if err != nil {
 			d.pipeline.log.Error("Derivation process error", "err", err)
-			d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err})
+			d.emitter.Emit(rollup.EngineTemporaryErrorEvent{Err: err, ParentEv: "pipelineStep"})
 		} else {
 			if attrib != nil {
-				d.emitDerivedAttributesEvent(attrib)
+				d.emitDerivedAttributesEvent(attrib, "pipelineStep")
 			} else {
-				d.emitter.Emit(DeriverMoreEvent{}) // continue with the next step if we can
+				d.emitter.Emit(DeriverMoreEvent{ParentEv: "pipelineStep"}) // continue with the next step if we can
 			}
 		}
 	case ConfirmPipelineResetEvent:
@@ -199,14 +199,14 @@ func (d *PipelineDeriver) OnEvent(ev event.Event) bool {
 			d.emitter.Emit(rollup.CriticalErrorEvent{Err: fmt.Errorf("deriving deposits-only attributes: %w", err)})
 			return true
 		}
-		d.emitDerivedAttributesEvent(attrib)
+		d.emitDerivedAttributesEvent(attrib, "depositsOnlyPayloadAttributesRequest")
 	default:
 		return false
 	}
 	return true
 }
 
-func (d *PipelineDeriver) emitDerivedAttributesEvent(attrib *AttributesWithParent) {
+func (d *PipelineDeriver) emitDerivedAttributesEvent(attrib *AttributesWithParent, parent string) {
 	d.needAttributesConfirmation = true
-	d.emitter.Emit(DerivedAttributesEvent{Attributes: attrib})
+	d.emitter.Emit(DerivedAttributesEvent{Attributes: attrib, ParentEv: parent})
 }

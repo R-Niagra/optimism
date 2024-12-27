@@ -78,6 +78,7 @@ func (gs *GlobalSyncExec) pop() AnnotatedEvent {
 func (gs *GlobalSyncExec) processEvent(ev AnnotatedEvent) {
 	gs.handlesLock.RLock() // read lock, to allow Drain() to be called during event processing.
 	defer gs.handlesLock.RUnlock()
+	// fmt.Println("Processing: ", ev.Event.String(), " Parent", ev.Event.Parent())
 	for _, h := range gs.handles {
 		h.onEvent(ev)
 	}

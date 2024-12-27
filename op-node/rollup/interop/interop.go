@@ -195,7 +195,7 @@ func (d *InteropDeriver) onCrossUnsafe(x engine.CrossUnsafeUpdateEvent) error {
 	if err != nil {
 		return fmt.Errorf("failed to get cross-unsafe block info of %s: %w", result.Cross, err)
 	}
-	d.emitter.Emit(engine.PromoteCrossUnsafeEvent{Ref: ref})
+	d.emitter.Emit(engine.PromoteCrossUnsafeEvent{Ref: ref, ParentEv: "crossUnsafe"})
 
 	return nil
 }

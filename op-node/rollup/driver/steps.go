@@ -167,7 +167,7 @@ func (s *StepSchedulingDeriver) OnEvent(ev event.Event) bool {
 		}
 		// count as attempt by default. We reset to 0 if we are making healthy progress.
 		s.stepAttempts += 1
-		s.emitter.Emit(StepEvent{})
+		s.emitter.Emit(StepEvent{ParentEv: "stepAttempt"})
 	case ResetStepBackoffEvent:
 		s.stepAttempts = 0
 	default:

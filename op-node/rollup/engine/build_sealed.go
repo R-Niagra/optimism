@@ -39,6 +39,7 @@ func (eq *EngDeriver) onBuildSealed(ev BuildSealedEvent) {
 			Envelope:     ev.Envelope,
 			Ref:          ev.Ref,
 			BuildStarted: ev.BuildStarted,
+			ParentEv:     "buildSealed",
 		})
 	}
 }

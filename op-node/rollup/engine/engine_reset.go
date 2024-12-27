@@ -65,6 +65,7 @@ func (d *EngineResetDeriver) OnEvent(ev event.Event) bool {
 			Unsafe:    result.Unsafe,
 			Safe:      result.Safe,
 			Finalized: result.Finalized,
+			ParentEv:  "ResetEngineRequest",
 		})
 	default:
 		return false

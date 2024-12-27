@@ -95,6 +95,7 @@ func (eq *EngDeriver) onBuildSeal(ev BuildSealEvent) {
 			Err:         fmt.Errorf("failed to seal execution payload (ID: %s): %w", ev.Info.ID, err),
 			Concluding:  ev.Concluding,
 			DerivedFrom: ev.DerivedFrom,
+			ParentEv:    "BuildSeal",
 		})
 		return
 	}
@@ -141,5 +142,6 @@ func (eq *EngDeriver) onBuildSeal(ev BuildSealEvent) {
 		Info:         ev.Info,
 		Envelope:     envelope,
 		Ref:          ref,
+		ParentEv:     "buildSeal",
 	})
 }
