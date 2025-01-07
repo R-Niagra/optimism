@@ -359,6 +359,8 @@ type PayloadAttributes struct {
 
 	// Transactions to force into the block (always at the start of the transactions list).
 	Transactions []Data `json:"transactions,omitempty"`
+	// info txs for the subsequent blocks
+	NextInfoTxs []Data `json:"nextInfoTxs,omitempty"`
 	// NoTxPool to disable adding any transactions from the transaction-pool.
 	NoTxPool bool `json:"noTxPool,omitempty"`
 	// GasLimit override

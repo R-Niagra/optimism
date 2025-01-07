@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
@@ -42,8 +43,28 @@ func NewFetchingAttributesBuilder(rollupCfg *rollup.Config, l1 L1ReceiptsFetcher
 
 // TestSkipL1OriginCheck skips the L1 origin timestamp check for testing purposes.
 // Must not be used in production!
-func (ba *FetchingAttributesBuilder) TestSkipL1OriginCheck() {
+func (ba *FetchingAttributesBuilder) TestSkipL1OriginCheck(num int) {
 	ba.testSkipL1OriginCheck = true
+}
+
+// CreateNextInfoTxs create infoTxs for the next block in the same epoch using the l1Info
+func (ba *FetchingAttributesBuilder) CreateNextInfoTxs(sysConfig eth.SystemConfig, num, startSeqNum uint64, l1Info eth.BlockInfo, l2Time uint64) ([][]byte, error) {
+	var (
+		txs        [][]byte
+		curSeqNum  = startSeqNum
+		nextL2Time = l2Time
+	)
+	for i := uint64(0); i < num; i++ {
+		tx, err := L1InfoDepositBytes(ba.rollupCfg, sysConfig, curSeqNum, l1Info, nextL2Time)
+		if err != nil {
+			return [][]byte{}, err
+		}
+		txs = append(txs, tx)
+		curSeqNum++
+		nextL2Time += ba.rollupCfg.BlockTime
+	}
+
+	return txs, nil
 }
 
 // PreparePayloadAttributes prepares a PayloadAttributes template that is ready to build a L2 block with deposits only, on top of the given l2Parent, with the given epoch as L1 origin.
@@ -52,9 +73,14 @@ func (ba *FetchingAttributesBuilder) TestSkipL1OriginCheck() {
 // The severity of the error is returned; a crit=false error means there was a temporary issue, like a failed RPC or time-out.
 // A crit=true error means the input arguments are inconsistent or invalid.
 func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Context, l2Parent eth.L2BlockRef, epoch eth.BlockID) (attrs *eth.PayloadAttributes, err error) {
-	var l1Info eth.BlockInfo
-	var depositTxs []hexutil.Bytes
-	var seqNumber uint64
+	var (
+		l1Info     eth.BlockInfo
+		depositTxs []hexutil.Bytes
+		seqNumber  uint64
+		// time difference between l1 blocks in sec
+		// TODO: fetch this value from rollup config
+		l1BlockTime uint64 = 12
+	)
 
 	sysConfig, err := ba.l2.SystemConfigByL2Hash(ctx, l2Parent.Hash)
 	if err != nil {
@@ -143,6 +169,19 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 	txs = append(txs, depositTxs...)
 	txs = append(txs, afterForceIncludeTxs...)
 	txs = append(txs, upgradeTxs...)
+	// if we are starting new epoch, create l1Info for subsequent blocks in the same epoch
+	var nextL1InfoTxs []hexutil.Bytes
+	if l2Parent.L1Origin.Number != epoch.Number {
+		numOfTxs := (l1BlockTime / ba.rollupCfg.BlockTime) - 1
+		nextInfoTxs, err := ba.CreateNextInfoTxs(sysConfig, numOfTxs, seqNumber+1, l1Info, nextL2Time+ba.rollupCfg.BlockTime)
+		if err != nil {
+			log.Error("failed to create l1InfoTx for subsequent blocks", "err", err)
+			return nil, NewCriticalError(fmt.Errorf("failed to create l1InfoTx for subsequent blocks: %w", err))
+		}
+		for _, infoTx := range nextInfoTxs {
+			nextL1InfoTxs = append(nextL1InfoTxs, infoTx)
+		}
+	}
 
 	var withdrawals *types.Withdrawals
 	if ba.rollupCfg.IsCanyon(nextL2Time) {
@@ -166,6 +205,7 @@ func (ba *FetchingAttributesBuilder) PreparePayloadAttributes(ctx context.Contex
 		GasLimit:              (*eth.Uint64Quantity)(&sysConfig.GasLimit),
 		Withdrawals:           withdrawals,
 		ParentBeaconBlockRoot: parentBeaconRoot,
+		NextInfoTxs:           nextL1InfoTxs,
 	}
 	if ba.rollupCfg.IsHolocene(nextL2Time) {
 		r.EIP1559Params = new(eth.Bytes8)
